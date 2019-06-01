@@ -19,6 +19,10 @@ from renderer import COLOUR_LIST, TEMPTING_TURQUOISE, BLACK, colour_name
 HIGHLIGHT_COLOUR = TEMPTING_TURQUOISE
 FRAME_COLOUR = BLACK
 
+max_size = 1500
+max_depth = 2
+children_per_block = 4
+
 
 class Block:
     """A square block in the Blocky game.
@@ -84,7 +88,36 @@ class Block:
         and max_depth) to 0.  (All attributes can be updated later, as
         appropriate.)
         """
-        pass
+        pass  # does nothing
+
+        self.highlighted = False
+        self.parent = None
+        self.level = level
+        self.max_depth = max_depth
+        self.size = max_size / (2 ** level)
+        self.position = (0, 0)
+
+        if colour is not None:
+            self.colour = colour
+        else:
+            self.colour = None
+
+        if children is not None:  # len(children) == 4
+            self.children = children
+            #  for x in range(block_children):
+            #  child =
+            for child in children:  # how can this work when the children are not initialized yet
+                child.colour = colour
+                child.children = None
+                child.highlighted = False
+                child.parent = self
+
+                child.max_depth = max_depth
+                child.position = (0, 0)
+                child.level = self.level + 1
+                self.size = max_size / (2 ** level)
+        else:
+            self.children = []  # None
 
     def rectangles_to_draw(self) -> List[Tuple[Tuple[int, int, int],
                                                Tuple[int, int],
@@ -124,7 +157,12 @@ class Block:
         If <direction> is 1, swap vertically.  If <direction> is 0, swap
         horizontally. If this Block has no children, do nothing.
         """
-        pass
+        # pass
+        if self.children is not []:
+            if direction == 1:
+                self.children[0], self.children[1] = self.children[2], self.children[3]
+            elif direction == 0:
+                self.children[0], self.children[2] = self.children[1], self.children[3]
 
     def rotate(self, direction: int) -> None:
         """Rotate this Block and all its descendants.
@@ -132,7 +170,14 @@ class Block:
         If <direction> is 1, rotate clockwise.  If <direction> is 3, rotate
         counterclockwise. If this Block has no children, do nothing.
         """
-        pass
+        # pass
+        if self.children is not []:
+            if direction == 1:
+                self.children[0], self.children[1], self.children[2], self.children[3] = \
+                    self.children[3], self.children[0], self.children[1], self.children[2]
+            elif direction == 3:
+                self.children[0], self.children[1], self.children[2], self.children[3] = \
+                    self.children[1], self.children[2], self.children[3], self.children[0]
 
     def smash(self) -> bool:
         """Smash this block.
@@ -147,7 +192,20 @@ class Block:
 
         Return True if this Block was smashed and False otherwise.
         """
-        pass
+        # pass
+
+        if self.level == 0 or self.level == self.max_depth:
+            return False
+        else:
+
+            for i in range(children_per_block):  # TODO Find better way of iterating
+                new_child = Block(self.level + 1, self.colour, None)
+                new_child.parent = self
+                self.children.append(new_child)
+
+            self.colour = None
+
+            return True
 
     def update_block_locations(self, top_left: Tuple[int, int],
                                size: int) -> None:
@@ -160,7 +218,19 @@ class Block:
         <top_left> is the (x, y) coordinates of the top left corner of
         this Block.  <size> is the height and width of this Block.
         """
-        pass
+        # pass
+
+        self.position = top_left
+        self.size = size
+        if len(self.children) == children_per_block:
+            half_size = size / 2
+            self.children[0].position = top_left[0] + half_size, top_left[1]
+            self.children[1].position = top_left
+            self.children[2].position = top_left[0], top_left[1] + half_size
+            self.children[3].position = top_left[0] + half_size, top_left[1] + half_size
+
+            for child in self.children:
+                child.size = half_size
 
     def get_selected_block(self, location: Tuple[int, int], level: int) \
             -> 'Block':
@@ -179,7 +249,11 @@ class Block:
         Preconditions:
         - 0 <= level <= max_depth
         """
-        pass
+        while self.level < level:
+            if len(self.children) == 0:
+                return self
+            else:
+                return self.children[0]  # TODO Finish
 
     def flatten(self) -> List[List[Tuple[int, int, int]]]:
         """Return a two-dimensional list representing this Block as rows
@@ -194,7 +268,26 @@ class Block:
 
         L[0][0] represents the unit cell in the upper left corner of the Block.
         """
-        pass
+        grid = List[List[Tuple[int, int, int]]]
+        i = 0
+        j = 0
+        if len(self.children) == 0:
+            if grid[i][j] is None:
+
+                grid[i][j] = self.colour
+                grid[i][j + 1] = self.colour
+                grid[i + 1][j] = self.colour
+                grid[i + 1][j + 1] = self.colour
+        else:
+            if grid[i][j] is None:
+
+                grid[i][j] = self.children[1].colour
+                grid[i][j + 1] = self.children[0].colour
+                grid[i + 1][j] = self.children[2].colour
+                grid[i + 1][j + 1] = self.children[3].colour
+
+        j += 2
+        # TODO I need to rethink the way of iterating over nodes, which is not grid-like.
 
 
 def random_init(level: int, max_depth: int) -> 'Block':
